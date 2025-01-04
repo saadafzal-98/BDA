@@ -1,0 +1,215 @@
+networks:
+  bigdata_network:
+    driver: bridge
+
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop2.7.4-java8
+    container_name: namenode
+    environment:
+      - CLUSTER_NAME=test
+    env_file:
+      - ./hadoop.env
+    ports:
+      - 8020:8020
+      - 50070:50070
+    networks:
+      - bigdata_network
+    volumes:
+      - D:/BDA_PROJECT/hadoop/namenode:/hadoop/dfs/name
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop2.7.4-java8
+    container_name: datanode
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070"
+    env_file:
+      - ./hadoop.env
+    ports:
+      - 50075:50075
+    networks:
+      - bigdata_network
+    volumes:
+      - D:/BDA_PROJECT/hadoop/datanode:/hadoop/dfs/data
+
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop2.7.4-java8
+    container_name: resourcemanager
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070 datanode:50075"
+    env_file:
+      - ./hadoop.env
+    ports:
+      - 8088:8088
+      - 8032:8032
+    networks:
+      - bigdata_network
+
+  nodemanager:
+    image: bde2020/hadoop-nodemanager:2.0.0-hadoop2.7.4-java8
+    container_name: nodemanager
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070 datanode:50075 resourcemanager:8088"
+    env_file:
+      - ./hadoop.env
+    depends_on:
+      - namenode
+      - resourcemanager
+    ports:
+      - 8042:8042
+    networks:
+      - bigdata_network
+
+  historyserver:
+    image: bde2020/hadoop-historyserver:2.0.0-hadoop2.7.4-java8
+    container_name: historyserver
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070 datanode:50075 resourcemanager:8088"
+    env_file:
+      - ./hadoop.env
+    ports:
+      - 8188:8188
+      - 19888:19888
+    networks:
+      - bigdata_network
+      
+  zoo:
+    image: zookeeper:3.4.10
+    container_name: zookeeper
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=0.0.0.0:2888:3888
+      ZOO_TICK_TIME: 15000
+    ports:
+      - 2181:2181
+    networks:
+      - bigdata_network
+      
+  kafka:
+    image: wurstmeister/kafka:2.12-2.2.1
+    container_name: kafka
+    depends_on:
+      - zoo
+    environment:
+      - KAFKA_ZOOKEEPER_CONNECT=zoo:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_ADVERTISED_LISTENERS=INSIDE://kafka:9093,OUTSIDE://kafka:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      - KAFKA_LISTENERS=INSIDE://0.0.0.0:9093,OUTSIDE://0.0.0.0:9092
+      - KAFKA_INTER_BROKER_LISTENER_NAME=INSIDE
+      - KAFKA_BROKER_ID=1
+    ports:
+      - 9092:9092
+    networks:
+      - bigdata_network
+    volumes:
+      - D:/BDA_PROJECT/kafka:/kafka/logs
+      - D:/BDA_PROJECT/kafka/dataset:/dataset
+
+  kafka_manager:
+    image: hlebalbau/kafka-manager:2.0.0.2
+    container_name: kafka_manager
+    environment:
+      - ZK_HOSTS=zoo:2181
+      - KAFKA_MANAGER_AUTH_ENABLED=true
+      - KAFKA_MANAGER_USERNAME=hai
+      - KAFKA_MANAGER_PASSWORD=hai
+    command: -Dpidfile.path=/dev/null
+
+    ports:
+      - 9000:9000
+    networks:
+      - bigdata_network
+
+  spark-master:
+    image: bde2020/spark-master:2.4.1-hadoop2.7
+    container_name: spark-master
+    ports:
+      - 7077:7077
+      - 8080:8080
+    environment:
+      - INIT_DAEMON_STEP=setup_spark
+    networks:
+      - bigdata_network
+    volumes:
+      - D:/BDA_PROJECT/spark:/data
+
+  spark-worker-1:
+    image: bde2020/spark-worker:2.4.1-hadoop2.7
+    container_name: spark-worker-1
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+    ports:
+      - 8081:8081
+    networks:
+      - bigdata_network
+
+  hive-server:
+    container_name: hive-server
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    env_file:
+      - ./hadoop-hive.env
+    ports:
+      - 10000:10000
+    networks:
+      - bigdata_network
+    volumes:
+      - D:/BDA_PROJECT/hive:/hive/data
+
+  hive-metastore:
+    container_name: hive-metastore
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    command: /opt/hive/bin/hive --service metastore
+    env_file:
+      - ./hadoop-hive.env
+    ports:
+      - 9083:9083
+    networks:
+      - bigdata_network
+    volumes:
+      - D:/BDA_PROJECT/hive/metastore:/hive/metastore
+
+  hive-metastore-postgresql:
+    container_name: hive-metastore-postgresql
+    image: bde2020/hive-metastore-postgresql:2.3.0
+    networks:
+      - bigdata_network
+
+  cassandra:
+    image: cassandra:3.11.4
+    container_name: cassandra
+    ports:
+      - 9042:9042
+    networks:
+      - bigdata_network
+    volumes:
+      - D:/BDA_PROJECT/cassandra:/var/lib/cassandra
+
+  postgres:
+    image: postgres:latest
+    container_name: shopping_cart_postgres
+    environment:
+      POSTGRES_USER: shopping_cart
+      POSTGRES_PASSWORD: shopping_cart
+    ports:
+      - 5432:5432
+    networks:
+      - bigdata_network
+    volumes:
+      - D:/BDA_PROJECT/postgres:/var/lib/postgresql/data
+
+  jupyter:
+    build:
+      context: D:/BDA_PROJECT/jupyter  # Path to your Dockerfile's directory
+      dockerfile: Dockerfile  # This will be automatically found in the context
+    image: mycollab/jupyter-bigdata:latest
+    container_name: jupyter
+    ports:
+      - 8888:8888
+    networks:
+      - bigdata_network
+    volumes:
+      - D:/BDA_PROJECT/jupyter/notebooks:/home/jovyan/work
+      - D:/BDA_PROJECT/jupyter/config:/root/.jupyter
