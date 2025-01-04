@@ -81,6 +81,9 @@ BDA_PROJECT/
 └── spark_kafka_hive.py
 
 
+![diagram_flow](https://github.com/user-attachments/assets/82b06ed5-9703-4bae-b02d-38c35f93af30)
+
+
 🌐 Accessing Services
 
 Service	URL
