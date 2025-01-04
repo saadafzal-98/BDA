@@ -38,6 +38,8 @@ This project simulates a **real-world e-commerce business process**:
 
 ---
 
+diagram_flow.png
+
 ## 🏃 **How to Run the Project**
 
 ### 1️⃣ **Start All Services**
