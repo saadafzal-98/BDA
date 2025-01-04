@@ -38,7 +38,7 @@ This project simulates a **real-world e-commerce business process**:
 
 ---
 
-[diagram_flow.png](https://github.com/saadafzal-98/BDA/blob/main/diagram_flow.png?raw=true)
+![Image Description](https://github.com/saadafzal-98/BDA/blob/main/diagram_flow.png?raw=true)
 
 ## 🏃 **How to Run the Project**
 
